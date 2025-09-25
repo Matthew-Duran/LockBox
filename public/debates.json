@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "title": "Presidential Debate 1 - 2000",
+    "date": "2000-10-03",
+    "location": "University of Massachusetts",
+    "candidates": { "dem": "Gore", "rep": "Bush" },
+    "transcriptUrl": "/debates/Pres_Debate_1_2000.txt"
+  },
+  {
+    "id": 2,
+    "title": "Presidential Debate 2 - 2000",
+    "date": "2000-10-11",
+    "location": "Wake Forest University",
+    "candidates": { "dem": "Gore", "rep": "Bush" },
+    "transcriptUrl": "/debates/Pres_Debate_2_2000.txt"
+  },
+  {
+    "id": 3,
+    "title": "Presidential Debate 3 - 2000",
+    "date": "2000-10-17",
+    "location": "Washington University",
+    "candidates": { "dem": "Gore", "rep": "Bush" },
+    "transcriptUrl": "/debates/Pres_Debate_3_2000.txt"
+  }
+]
