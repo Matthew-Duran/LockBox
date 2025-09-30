@@ -38,12 +38,14 @@ const App = () => {
     const [currentSegmentIndex, setCurrentSegmentIndex] = useState(-1);
     const [segmentScores, setSegmentScores] = useState({});
 
-    // New state for enhanced features
+// New state for enhanced features
     const [analysisSpeed, setAnalysisSpeed] = useState(1);
     const [isPaused, setIsPaused] = useState(false);
     const [analysisComplete, setAnalysisComplete] = useState(false);
     const [debateSummary, setDebateSummary] = useState(null);
     const [turningPoints, setTurningPoints] = useState([]);
+    const [showFullTranscript, setShowFullTranscript] = useState(false);
+    const [analyzedTranscriptLines, setAnalyzedTranscriptLines] = useState([]);
 
     const PARTY_COLORS = {
         democrat: '#3b82f6',
@@ -51,6 +53,37 @@ const App = () => {
         democratLight: '#60a5fa',
         republicanLight: '#f87171'
     };
+
+    const DEMO_DEBATE = {
+        id: 'demo_debate',
+        title: 'Demo Analysis - Sample Debate',
+        date: 'Demo Mode',
+        location: 'Sample Analysis',
+        candidates: { dem: 'Democrat Candidate', rep: 'Republican Candidate' },
+        topics: ['economy', 'healthcare', 'education']
+    };
+
+    const DEMO_TRANSCRIPT = `DEMOCRAT: We need to invest in clean energy jobs that will create millions of opportunities for working families while protecting our environment for future generations.
+
+REPUBLICAN: What we really need is to unleash American energy independence through domestic oil and gas production, which will lower costs for consumers and strengthen our national security.
+
+MODERATOR: Let's move to healthcare. How would you address rising prescription drug costs?
+
+DEMOCRAT: We must allow Medicare to negotiate drug prices directly with pharmaceutical companies and cap out-of-pocket costs for seniors to make medications affordable for everyone.
+
+REPUBLICAN: The solution is to increase competition by allowing insurance to be sold across state lines and reducing government regulations that drive up healthcare costs.
+
+MODERATOR: On education funding, what are your priorities?
+
+REPUBLICAN: We should give parents more school choice through voucher programs and charter schools, empowering families to choose the best education for their children.
+
+DEMOCRAT: We need to fully fund public schools, pay teachers what they deserve, and make college more affordable through expanded financial aid and community college programs.
+
+MODERATOR: How would you address the national debt?
+
+DEMOCRAT: We can reduce the deficit by asking the wealthy and corporations to pay their fair share while investing in programs that grow the middle class and create good-paying jobs.
+
+REPUBLICAN: We need to cut wasteful government spending, reduce bureaucracy, and promote economic growth through lower taxes that encourage business investment and job creation.`;
 
     const PRESIDENTIAL_DEBATES = {
         2024: [
@@ -219,6 +252,10 @@ const App = () => {
                 topics: ['foreign_policy', 'military', 'campaign_finance', 'energy']
             }
         ]
+
+
+
+
     };
 
     const calculateImpactScore = (segment, sentimentData) => {
@@ -249,8 +286,93 @@ const App = () => {
     const generateSentimentAnalysis = (segment) => {
         const text = segment.text.toLowerCase();
 
-        const positiveWords = ['success', 'achieve', 'better', 'improve', 'strong', 'great', 'progress', 'opportunity'];
-        const negativeWords = ['fail', 'disaster', 'wrong', 'terrible', 'crisis', 'problem', 'threat', 'dangerous'];
+        const positiveWords = [
+            // Strong/assertive rhetoric
+            'strong', 'strength', 'powerful', 'winning', 'win', 'victory', 'fight', 'fighter',
+            'tough', 'toughness', 'stand up', 'fight back', 'push back', 'won\'t back down',
+
+            // Economic promises
+            'jobs', 'economy', 'growth', 'prosperity', 'wealth', 'success', 'opportunity',
+            'middle class', 'working families', 'tax cuts', 'lower taxes', 'affordable',
+
+            // Patriotic/nationalist
+            'america first', 'make america', 'greatest country', 'american dream', 'our country',
+            'freedom', 'liberty', 'constitution', 'founding fathers', 'patriots',
+
+            // Security themes
+            'safe', 'safety', 'secure', 'security', 'protect', 'defense', 'military', 'veterans',
+            'law and order', 'tough on crime', 'border security',
+
+            // Confident language
+            'absolutely', 'without question', 'make no mistake', 'let me be clear', 'i will',
+            'we will', 'i promise', 'guarantee', 'committed', 'determined',
+
+            // Zingers
+            'wrong', 'excuse me', 'let me finish', 'that\'s not true', 'fact check',
+
+            // Bush era (2000-2008)
+            'compassionate conservative', 'unite', 'uniter', 'leadership', 'experience',
+
+            // Obama era (2008-2016)
+            'hope', 'change', 'yes we can', 'fired up', 'ready to go', 'forward',
+
+            // Trump era (2016-2024)
+            'drain the swamp', 'fake news', 'make america great', 'america first', 'believe me',
+            'many people', 'everybody knows', 'everybody says', 'like never before',
+            'biggest', 'best', 'tremendous', 'incredible', 'amazing', 'beautiful', 'because you\'d be in jail',
+
+            // Biden/Harris era (2020-2024)
+            'build back', 'restore', 'heal', 'unite', 'folks', 'here\'s the deal',
+            'not a joke', 'i mean it', 'come on', 'malarkey'
+        ];
+
+        const negativeWords = [
+            // Signs of weakness/poor performance
+            'uh', 'um', 'well', 'you know', 'i mean', 'sort of', 'kind of', 'maybe',
+            'stutter', 'stumble', 'rambling', 'incoherent', 'confused', 'lost',
+            'forgot', 'can\'t remember', 'don\'t recall', 'mumbling', 'trailing off',
+
+            // Dodging/evasiveness
+            'no comment', 'won\'t answer', 'dodge', 'avoided', 'didn\'t answer',
+            'changed subject', 'deflect', 'pivot',
+
+            // Being caught in lies
+            'lied', 'lying', 'false', 'fact-checked', 'debunked', 'wrong', 'incorrect',
+            'contradiction', 'flip-flop', 'flip flop', 'changed position', 'inconsistent',
+
+            // Looking unprepared
+            'unprepared', 'doesn\'t know', 'no plan', 'no idea', 'unclear', 'vague',
+
+            // Gore-Bush (2000)
+            'lockbox', 'lockbox', 'lockbox', 'sighing', 'sighs', 'fuzzy math',
+
+            // Bush-Kerry (2004)
+            'misunderestimate', 'strategery', 'i actually did vote for',
+
+            // Obama-McCain (2008)
+            'bomb bomb iran', 'fundamentals are strong', '$5 million',
+
+            // Romney (2012)
+            'binders full of women', '47 percent', 'corporations are people',
+
+            // Clinton-Trump (2016)
+            'deplorables', 'basket of deplorables', 'pokemon go', 'why aren\'t i 50 points',
+            'emails', 'private server', 'benghazi', 'delete', 'bleachbit',
+            'no puppet', 'wrong', 'sniff',
+
+            // Biden-Trump (2020-2024)
+            'will you shut up man', 'clown', 'sleepy', 'hiding in basement',
+            'cognitive test', 'person woman man camera tv', 'bleach', 'inject disinfectant',
+            'very fine people', 'stand back stand by', 'proud boys',
+            'listen fat', 'lying dog-faced pony soldier', 'you ain\'t black',
+            'pause', 'long pause', 'frozen', 'blank stare', 'lost his train',
+
+            // General debate failures
+            'embarrassing', 'disaster', 'trainwreck', 'meltdown', 'collapsed',
+            'defeated', 'destroyed', 'humiliated', 'crushed', 'demolished',
+            'weak', 'pathetic', 'sad', 'low energy', 'no stamina', 'tired',
+            'couldn\'t defend', 'had no response', 'silent', 'speechless'
+        ];
 
         let sentiment = 'NEUTRAL';
         let confidence = 0.6;
@@ -269,10 +391,29 @@ const App = () => {
         return { sentiment, confidence };
     };
 
+
     const isDemocratCandidate = (speaker) => {
-        const democratNames = ['harris', 'biden', 'obama', 'clinton', 'gore', 'kerry'];
+        const democratNames = ['Al Gore', 'Joe Biden', 'Barack Obama', 'Hillary Clinton', 'John Kerry', 'Kamala Harris'];
+        const republicanNames = ['George W. Bush', 'Donald Trump', 'Mitt Romney', 'John McCain'];
+
+        // Check exact match first
+        if (democratNames.includes(speaker)) {
+            return true;
+        }
+        if (republicanNames.includes(speaker)) {
+            return false;
+        }
+
+        // Fallback to partial match
         const speakerLower = speaker.toLowerCase();
-        return democratNames.some(name => speakerLower.includes(name));
+        if (democratNames.some(name => speakerLower.includes(name.toLowerCase()))) {
+            return true;
+        }
+        if (republicanNames.some(name => speakerLower.includes(name.toLowerCase()))) {
+            return false;
+        }
+
+        return false;
     };
 
     const fetchDebateTranscript = async (debate) => {
@@ -299,6 +440,13 @@ const App = () => {
         } catch (error) {
             console.error('Error fetching transcript:', error);
             setTranscriptError(`Failed to load transcript: ${error.message}`);
+
+            // Automatically run demo analysis when transcript fails
+            console.log('Transcript failed, running demo analysis...');
+            setTimeout(() => {
+                runDemoAnalysis();
+            }, 1000); // Small delay so user sees the error briefly
+
         } finally {
             setIsLoadingTranscript(false);
         }
@@ -306,6 +454,7 @@ const App = () => {
 
     const analyzeTranscriptInChunks = (transcriptText, debate) => {
         const segments = parseTranscriptIntoSegments(transcriptText, debate);
+        console.log('Starting analysis with segments:', segments.length);
 
         if (segments.length === 0) {
             setTranscriptError('No valid segments found in transcript');
@@ -315,8 +464,20 @@ const App = () => {
 
         setParsedSegments(segments);
 
+        // Failsafe: Force summary generation after analysis should be complete
+        const maxAnalysisTime = segments.length * (2000 / analysisSpeed) + 5000; // Expected time + 5 seconds buffer
+        setTimeout(() => {
+            if (isAnalyzing) {
+                console.log('Forcing summary generation - analysis took too long');
+                generateDebateSummary();
+                setCurrentSegmentIndex(-1);
+                setIsAnalyzing(false);
+                setAnalysisComplete(true);
+            }
+        }, maxAnalysisTime);
+
         let currentIndex = 0;
-        const baseDelay = 3000; // Base delay in milliseconds
+        const baseDelay = 1000; // Base delay in milliseconds
         let intervalId;
 
         const processNextChunk = () => {
@@ -351,6 +512,16 @@ const App = () => {
                     setCurrentTime(analysisData.timestamp);
                     setDebateSegments(prev => [...prev, analysisData]);
 
+                    // Add to analyzed transcript lines
+                    setAnalyzedTranscriptLines(prev => [...prev, {
+                        speaker: segment.speaker,
+                        text: segment.text,
+                        impactScore: impactScore,
+                        sentiment: sentimentData.sentiment,
+                        segmentNumber: currentIndex + 1,
+                        isDemocrat: isDemocratCandidate(segment.speaker)
+                    }]);
+
                     const party = isDemocratCandidate(segment.speaker) ? 'democrat' : 'republican';
                     setCandidateScores(prev => ({
                         ...prev,
@@ -367,18 +538,25 @@ const App = () => {
                 if (currentIndex < segments.length) {
                     intervalId = setTimeout(processNextChunk, baseDelay / analysisSpeed);
                 } else {
-                    // Analysis complete - generate summary
+                // Analysis complete - generate summary
+                console.log('Analysis complete, calling generateDebateSummary');
+                console.log('Debate segments length:', debateSegments.length);
+                console.log('Candidate scores:', candidateScores);
+
+                // Force summary generation even if conditions aren't perfect
+                setTimeout(() => {
                     generateDebateSummary();
                     setCurrentSegmentIndex(-1);
                     setIsAnalyzing(false);
                     setAnalysisComplete(true);
-                }
+                }, 500);
+            }
             }
         };
 
         setTimeout(() => {
             processNextChunk();
-        }, 1000);
+        }, 500);
 
         return () => {
             if (intervalId) clearTimeout(intervalId);
@@ -449,6 +627,8 @@ const App = () => {
             'ROMNEY': debate.candidates.rep,
             'MCCAIN': debate.candidates.rep,
             'KERRY': debate.candidates.dem,
+            'DEMOCRAT': debate.candidates.dem,
+            'REPUBLICAN': debate.candidates.rep,
             'MODERATOR': 'MODERATOR'
         };
 
@@ -457,60 +637,112 @@ const App = () => {
 
     const extractTopicFromText = (text) => {
         const topicKeywords = {
-            economy: ['economy', 'jobs', 'unemployment', 'business'],
-            healthcare: ['healthcare', 'health', 'medical', 'insurance'],
-            foreign_policy: ['foreign', 'international', 'war', 'military'],
-            immigration: ['immigration', 'border', 'immigrant'],
-            climate: ['climate', 'environment', 'energy']
+            economy: [
+                'economy', 'jobs', 'unemployment', 'business', 'growth', 'inflation',
+                'tax', 'taxes', 'trade', 'budget', 'recession', 'investment', 'wages',
+                'poverty', 'middle class', 'corporations'
+            ],
+            healthcare: [
+                'healthcare', 'health', 'medical', 'insurance', 'medicare', 'medicaid',
+                'drug prices', 'hospital', 'mental health', 'health reform', 'obamacare',
+                'universal healthcare', 'patient care'
+            ],
+            foreign_policy: [
+                'foreign', 'international', 'war', 'military', 'defense', 'terrorism',
+                'alliance', 'diplomacy', 'afghanistan', 'iraq', 'china', 'russia',
+                'nuclear', 'sanctions'
+            ],
+            immigration: [
+                'immigration', 'border', 'immigrant', 'visa', 'refugee', 'deportation',
+                'citizenship', 'asylum', 'illegal immigration', 'DACA'
+            ],
+            climate: [
+                'climate', 'environment', 'energy', 'renewable', 'carbon', 'pollution',
+                'global warming', 'green energy', 'sustainability', 'emissions',
+                'clean energy', 'fossil fuels', 'climate change'
+            ],
+            education: [
+                'education', 'schools', 'student', 'college', 'university', 'tuition',
+                'student loans', 'curriculum', 'teachers', 'learning', 'funding'
+            ],
+            healthcare_policy: [
+                'health policy', 'insurance reform', 'affordable care act', 'ACA'
+            ],
+            civil_rights: [
+                'civil rights', 'equality', 'discrimination', 'justice', 'freedom',
+                'racial justice', 'LGBTQ', 'equal rights', 'gender equality'
+            ],
+            technology: [
+                'technology', 'internet', 'privacy', 'data', 'cybersecurity',
+                'AI', 'artificial intelligence', 'innovation', 'digital'
+            ]
         };
 
-        const textLower = text.toLowerCase();
+        text = text.toLowerCase();
+
         for (const [topic, keywords] of Object.entries(topicKeywords)) {
-            if (keywords.some(keyword => textLower.includes(keyword))) {
-                return topic;
+            for (const keyword of keywords) {
+                if (text.includes(keyword)) {
+                    return topic;
+                }
             }
         }
-        return 'general';
+
+        return 'other';
     };
+
 
     const generateDebateSummary = () => {
         const momentumData = createMomentumData();
+        console.log('Momentum data:', momentumData.slice(0, 5));
+
         const turningPointsData = findTurningPoints(momentumData);
+        console.log('Turning points data:', turningPointsData);
+
+        // Debug logging
+        console.log('Candidate scores:', candidateScores);
+        console.log('Momentum data length:', momentumData.length);
+        console.log('Sample momentum data:', momentumData.slice(0, 5));
 
         // Calculate winner based on final score
         const winner = candidateScores.democrat.score > candidateScores.republican.score
             ? candidateScores.democrat.name
             : candidateScores.republican.name;
 
+        console.log('Winner determined:', winner);
+
+        // Calculate time-weighted momentum (how long each candidate led)
         // Calculate time-weighted momentum (how long each candidate led)
         let democratLeadingTime = 0;
         let republicanLeadingTime = 0;
 
-        momentumData.forEach(() => {
-            if (currentMomentum > 0) {
-                democratLeadingTime += 30; // 30 seconds per segment
-            } else if (currentMomentum < 0) {
-                republicanLeadingTime += 30;
-            }
-        });
+        if (momentumData.length > 0) {
+            momentumData.forEach((data, index) => {
+                console.log(`Segment ${index}: momentum=${data.momentum}, speaker=${data.speaker}`);
+                if (data.momentum > 0.1) {  // Use small threshold instead of exact 0
+                    democratLeadingTime += 30;
+                } else if (data.momentum < -0.1) {
+                    republicanLeadingTime += 30;
+                }
+            });
+        } else {
+            console.log('No momentum data available');
+        }
 
-        // Find most impactful moment
-        let mostImpactfulMoment = null;
-        let highestImpact = 0;
+        console.log('Final times - Dem:', democratLeadingTime/60, 'Rep:', republicanLeadingTime/60);
 
-        debateSegments.forEach((segment, index) => {
-            const impact = Math.abs(segment.segment?.impact_score || 0);
-            if (impact > highestImpact) {
-                highestImpact = impact;
-                mostImpactfulMoment = {
-                    speaker: segment.segment?.speaker,
-                    impact: segment.segment?.impact_score,
-                    text: segment.segment?.text?.substring(0, 120) + '...',
-                    segment: index + 1,
-                    topic: segment.segment?.topic
-                };
-            }
-        });
+        // Find top 3 most impactful moments
+        const impactfulMoments = debateSegments
+            .map((segment, index) => ({
+                speaker: segment.segment?.speaker,
+                impact: segment.segment?.impact_score || 0,
+                text: segment.segment?.text?.substring(0, 120) + '...',
+                segment: index + 1,
+                topic: segment.segment?.topic,
+                absImpact: Math.abs(segment.segment?.impact_score || 0)
+            }))
+            .sort((a, b) => b.absImpact - a.absImpact)
+            .slice(0, 3);
 
         const summary = {
             winner,
@@ -521,39 +753,119 @@ const App = () => {
                 (candidateScores.republican.score / candidateScores.republican.segments).toFixed(2) : 0,
             keyMoments: turningPointsData.slice(0, 3),
             finalMomentum: momentumData.length > 0 ? momentumData[momentumData.length - 1].momentum : 0,
-            // New stats
+            // Fixed time calculations
             democratLeadingTime: Math.round(democratLeadingTime / 60), // Convert to minutes
             republicanLeadingTime: Math.round(republicanLeadingTime / 60),
             totalMomentumDemocrat: candidateScores.democrat.score,
             totalMomentumRepublican: Math.abs(candidateScores.republican.score),
-            mostImpactfulMoment
+            mostImpactfulMoments: impactfulMoments
         };
 
         setDebateSummary(summary);
-        setTurningPoints(turningPointsData);
+        setTurningPoints(turningPointsData); // Make sure this line is here
+        console.log('Set turning points:', turningPointsData.length);
     };
 
     const findTurningPoints = (data) => {
+        console.log('Finding turning points in data:', data.length, 'segments');
         const points = [];
         for (let i = 1; i < data.length - 1; i++) {
             const prev = data[i - 1].momentum;
             const curr = data[i].momentum;
             const next = data[i + 1].momentum;
 
-            // Look for momentum shifts
+            // Look for momentum shifts (made more sensitive)
             if ((prev < curr && curr > next) || (prev > curr && curr < next)) {
+                console.log(`Turning point found at segment ${i + 1}: ${prev} -> ${curr} -> ${next}`);
                 points.push({
                     segment: i + 1,
                     momentum: curr,
                     description: `Major momentum shift at segment ${i + 1}`,
-                    speaker: data[i].speaker
+                    speaker: data[i].speaker,
+                    text: data[i].text // This was missing!
                 });
             }
         }
+
+        // If no turning points found with strict criteria, find the 3 biggest momentum changes
+        if (points.length === 0) {
+            console.log('No strict turning points found, finding biggest momentum changes');
+            for (let i = 1; i < data.length; i++) {
+                const prev = data[i - 1].momentum;
+                const curr = data[i].momentum;
+                const change = Math.abs(curr - prev);
+
+                if (change > 0.1) { // Any change greater than 0.1
+                    points.push({
+                        segment: i + 1,
+                        momentum: curr,
+                        description: `Momentum change of ${change.toFixed(1)} at segment ${i + 1}`,
+                        speaker: data[i].speaker,
+                        text: data[i].text,
+                        change: change
+                    });
+                }
+            }
+
+            // Sort by biggest changes and take top 3
+            points.sort((a, b) => (b.change || 0) - (a.change || 0));
+            points.splice(3); // Keep only top 3
+        }
+
+        console.log('Total turning points found:', points.length);
         return points;
     };
 
+
+    const resetAnalysisState = () => {
+        // Clear all timers/intervals first
+        setIsAnalyzing(false);
+        setAnalysisComplete(false);
+        setIsPaused(false);
+        setDebateSummary(null);
+        setTurningPoints([]);
+        setDebateSegments([]);
+        setCurrentTime(0);
+        setLiveAnalysis(null);
+        setParsedSegments([]);
+        setCurrentSegmentIndex(-1);
+        setSegmentScores({});
+        setDebateTranscript('');
+        setTranscriptError('');
+        setIsLoadingTranscript(false);
+        setDebateStats({
+            zingers: 0,
+            comebacks: 0,
+            interruptions: 0,
+            factChecks: 0
+        });
+        setCandidateScores({
+            democrat: { name: 'Democrat', score: 0, segments: 0 },
+            republican: { name: 'Republican', score: 0, segments: 0 }
+        });
+        setShowFullTranscript(false);
+        setAnalyzedTranscriptLines([]);
+    };
+
+    const runDemoAnalysis = () => {
+        resetAnalysisState();
+        setSelectedDebate(DEMO_DEBATE);
+        setIsAnalyzing(true);
+        setCandidateScores({
+            democrat: { name: DEMO_DEBATE.candidates.dem, score: 0, segments: 0 },
+            republican: { name: DEMO_DEBATE.candidates.rep, score: 0, segments: 0 }
+        });
+
+        analyzeTranscriptInChunks(DEMO_TRANSCRIPT, DEMO_DEBATE);
+    };
+
     const startDebateAnalysis = async (debate) => {
+        // Force complete reset before starting new analysis
+        resetAnalysisState();
+
+        // Small delay to ensure state clears
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         setSelectedDebate(debate);
         setIsAnalyzing(true);
         setAnalysisComplete(false);
@@ -564,6 +876,7 @@ const App = () => {
         setParsedSegments([]);
         setCurrentSegmentIndex(-1);
         setSegmentScores({});
+        setAnalyzedTranscriptLines([]);
         setCandidateScores({
             democrat: { name: debate.candidates.dem, score: 0, segments: 0 },
             republican: { name: debate.candidates.rep, score: 0, segments: 0 }
@@ -653,9 +966,9 @@ const App = () => {
 
     const getWinningCandidate = () => {
         if (candidateScores.democrat.score > candidateScores.republican.score) {
-            return { party: candidateScores.democrat.name, color: PARTY_COLORS.democratLight };
+            return { party: candidateScores.democrat.name, color: PARTY_COLORS.democrat };
         } else if (candidateScores.republican.score > candidateScores.democrat.score) {
-            return { party: candidateScores.republican.name, color: PARTY_COLORS.republicanLight };
+            return { party: candidateScores.republican.name, color: PARTY_COLORS.republican };
         }
         return null;
     };
@@ -917,6 +1230,34 @@ const App = () => {
                         }}>
                             Current Leader: {winner.party}
                         </span>
+                    </div>
+                )}
+
+                {/* Force summary if analysis is complete but summary is missing */}
+                {!isAnalyzing && debateSegments.length > 0 && !analysisComplete && (
+                    <div style={{
+                        padding: '16px',
+                        background: '#374151',
+                        borderRadius: '8px',
+                        marginBottom: '24px',
+                        textAlign: 'center'
+                    }}>
+                        <button
+                            onClick={() => {
+                                generateDebateSummary();
+                                setAnalysisComplete(true);
+                            }}
+                            style={{
+                                padding: '8px 16px',
+                                background: '#3b82f6',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Generate Summary
+                        </button>
                     </div>
                 )}
 
@@ -1238,345 +1579,155 @@ const App = () => {
                     </div>
                 </div>
 
-                {/* Debate Summary */}
+                {/* Simplified Debate Summary */}
                 {analysisComplete && debateSummary && (
                     <div style={{
-                        background: '#111827',
-                        border: '1px solid #1f2937',
-                        borderRadius: '12px',
-                        padding: '24px',
-                        marginTop: '24px'
+                        background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)',
+                        border: '1px solid #374151',
+                        borderRadius: '16px',
+                        padding: '32px',
+                        marginTop: '24px',
+                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
                     }}>
+                        {/* Winner Banner */}
                         <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            marginBottom: '20px'
+                            background: `linear-gradient(135deg, ${winner?.color || '#374151'}20, ${winner?.color || '#374151'}10)`,
+                            border: `2px solid ${winner?.color || '#374151'}`,
+                            borderRadius: '12px',
+                            padding: '24px',
+                            marginBottom: '32px',
+                            textAlign: 'center'
                         }}>
-                            <Trophy size={24} color="#eab308" />
-                            <h3 style={{
-                                fontSize: '1.25rem',
+                            <Trophy size={48} color={winner?.color || '#eab308'} style={{ margin: '0 auto 16px' }} />
+                            <h2 style={{
+                                fontSize: '2rem',
+                                fontWeight: '800',
+                                color: winner?.color || '#ffffff',
+                                margin: '0 0 8px 0',
+                                textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                            }}>
+                                {winner?.party || debateSummary.winner} WINS
+                            </h2>
+                            <p style={{
+                                fontSize: '1.125rem',
+                                color: '#e2e8f0',
+                                margin: '0',
+                                fontWeight: '500'
+                            }}>
+                                Victory Margin: {Math.abs(candidateScores.democrat.score - candidateScores.republican.score).toFixed(1)} points
+                            </p>
+                        </div>
+
+                        {/* Top 3 Turning Points */}
+                        <div>
+                            <h4 style={{
+                                fontSize: '1.125rem',
                                 fontWeight: '600',
                                 color: '#ffffff',
-                                margin: '0'
+                                margin: '0 0 20px 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
                             }}>
-                                Debate Analysis Summary
-                            </h3>
-                        </div>
-
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                            gap: '20px',
-                            marginBottom: '24px'
-                        }}>
-                            {/* Winner */}
+                                <Activity size={20} color="#eab308" />
+                                Top 3 Turning Points in the Debate
+                            </h4>
                             <div style={{
-                                padding: '20px',
-                                background: '#1f2937',
-                                border: '1px solid #374151',
-                                borderRadius: '8px',
-                                textAlign: 'center'
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                                gap: '20px'
                             }}>
-                                <Crown size={32} color="#eab308" style={{ margin: '0 auto 12px' }} />
-                                <div style={{
-                                    fontSize: '1.125rem',
-                                    fontWeight: '600',
-                                    color: '#eab308',
-                                    marginBottom: '4px'
-                                }}>
-                                    Debate Winner
-                                </div>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: '700',
-                                    color: '#ffffff'
-                                }}>
-                                    {debateSummary.winner}
-                                </div>
-                            </div>
-
-                            {/* Total Momentum - Democrat */}
-                            <div style={{
-                                padding: '20px',
-                                background: '#1f2937',
-                                border: '1px solid #374151',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <TrendingUp size={32} color="#3b82f6" style={{ margin: '0 auto 12px' }} />
-                                <div style={{
-                                    fontSize: '1.125rem',
-                                    fontWeight: '600',
-                                    color: '#3b82f6',
-                                    marginBottom: '4px'
-                                }}>
-                                    Total Momentum (D)
-                                </div>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: '700',
-                                    color: '#ffffff'
-                                }}>
-                                    {debateSummary.totalMomentumDemocrat.toFixed(1)}
-                                </div>
-                            </div>
-
-                            {/* Total Momentum - Republican */}
-                            <div style={{
-                                padding: '20px',
-                                background: '#1f2937',
-                                border: '1px solid #374151',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <TrendingUp size={32} color="#dc2626" style={{ margin: '0 auto 12px' }} />
-                                <div style={{
-                                    fontSize: '1.125rem',
-                                    fontWeight: '600',
-                                    color: '#dc2626',
-                                    marginBottom: '4px'
-                                }}>
-                                    Total Momentum (R)
-                                </div>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: '700',
-                                    color: '#ffffff'
-                                }}>
-                                    {debateSummary.totalMomentumRepublican.toFixed(1)}
-                                </div>
-                            </div>
-
-                            {/* Time Leading - Democrat */}
-                            <div style={{
-                                padding: '20px',
-                                background: '#1f2937',
-                                border: '1px solid #374151',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <Activity size={32} color="#3b82f6" style={{ margin: '0 auto 12px' }} />
-                                <div style={{
-                                    fontSize: '1.125rem',
-                                    fontWeight: '600',
-                                    color: '#3b82f6',
-                                    marginBottom: '4px'
-                                }}>
-                                    Time Leading (D)
-                                </div>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: '700',
-                                    color: '#ffffff'
-                                }}>
-                                    {debateSummary.democratLeadingTime}m
-                                </div>
-                            </div>
-
-                            {/* Time Leading - Republican */}
-                            <div style={{
-                                padding: '20px',
-                                background: '#1f2937',
-                                border: '1px solid #374151',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <Activity size={32} color="#dc2626" style={{ margin: '0 auto 12px' }} />
-                                <div style={{
-                                    fontSize: '1.125rem',
-                                    fontWeight: '600',
-                                    color: '#dc2626',
-                                    marginBottom: '4px'
-                                }}>
-                                    Time Leading (R)
-                                </div>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: '700',
-                                    color: '#ffffff'
-                                }}>
-                                    {debateSummary.republicanLeadingTime}m
-                                </div>
-                            </div>
-
-                            {/* Final Momentum */}
-                            <div style={{
-                                padding: '20px',
-                                background: '#1f2937',
-                                border: '1px solid #374151',
-                                borderRadius: '8px',
-                                textAlign: 'center'
-                            }}>
-                                <BarChart3 size={32} color={debateSummary.finalMomentum > 0 ? '#3b82f6' : '#dc2626'}
-                                           style={{ margin: '0 auto 12px' }} />
-                                <div style={{
-                                    fontSize: '1.125rem',
-                                    fontWeight: '600',
-                                    color: debateSummary.finalMomentum > 0 ? '#3b82f6' : '#dc2626',
-                                    marginBottom: '4px'
-                                }}>
-                                    Final Momentum
-                                </div>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: '700',
-                                    color: '#ffffff'
-                                }}>
-                                    {debateSummary.finalMomentum > 0 ? '+' : ''}{debateSummary.finalMomentum.toFixed(1)}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Most Impactful Moment */}
-                        {debateSummary.mostImpactfulMoment && (
-                            <div style={{ marginBottom: '24px' }}>
-                                <h4 style={{
-                                    fontSize: '1rem',
-                                    fontWeight: '600',
-                                    color: '#ffffff',
-                                    margin: '0 0 16px 0'
-                                }}>
-                                    Most Impactful Moment
-                                </h4>
-                                <div style={{
-                                    padding: '20px',
-                                    background: '#0f172a',
-                                    border: '1px solid #1e293b',
-                                    borderRadius: '8px'
-                                }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        marginBottom: '12px'
+                                {turningPoints.slice(0, 3).map((point, index) => (
+                                    <div key={index} style={{
+                                        padding: '24px',
+                                        background: index === 0 ? '#1e40af' : index === 1 ? '#0c4a6e' : '#0f172a',
+                                        border: index === 0 ? '2px solid #3b82f6' : index === 1 ? '2px solid #0284c7' : '1px solid #1e293b',
+                                        borderRadius: '12px',
+                                        position: 'relative'
                                     }}>
                                         <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '12px'
-                                        }}>
-                                            <div style={{
-                                                width: '8px',
-                                                height: '8px',
-                                                borderRadius: '50%',
-                                                backgroundColor: isDemocratCandidate(debateSummary.mostImpactfulMoment.speaker) ? '#3b82f6' : '#dc2626'
-                                            }}></div>
-                                            <span style={{
-                                                fontSize: '1rem',
-                                                fontWeight: '600',
-                                                color: '#ffffff'
-                                            }}>
-                                                {debateSummary.mostImpactfulMoment.speaker}
-                                            </span>
-                                            <span style={{
-                                                fontSize: '0.75rem',
-                                                padding: '2px 8px',
-                                                background: '#374151',
-                                                color: '#9ca3af',
-                                                borderRadius: '4px'
-                                            }}>
-                                                Segment {debateSummary.mostImpactfulMoment.segment}
-                                            </span>
-                                        </div>
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px'
-                                        }}>
-                                            <span style={{
-                                                fontSize: '0.75rem',
-                                                padding: '4px 8px',
-                                                background: '#581c87',
-                                                color: '#c4b5fd',
-                                                borderRadius: '4px',
-                                                fontWeight: '500'
-                                            }}>
-                                                {debateSummary.mostImpactfulMoment.topic?.replace('_', ' ')}
-                                            </span>
-                                            <span style={{
-                                                fontSize: '1.125rem',
-                                                fontWeight: '700',
-                                                color: debateSummary.mostImpactfulMoment.impact > 0 ? '#22c55e' : '#ef4444'
-                                            }}>
-                                                {debateSummary.mostImpactfulMoment.impact > 0 ? '+' : ''}{debateSummary.mostImpactfulMoment.impact.toFixed(1)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <p style={{
-                                        color: '#e2e8f0',
-                                        margin: '0',
-                                        fontSize: '0.875rem',
-                                        lineHeight: '1.5',
-                                        fontStyle: 'italic'
-                                    }}>
-                                        "{debateSummary.mostImpactfulMoment.text}"
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {turningPoints.length > 0 && (
-                            <div>
-                                <h4 style={{
-                                    fontSize: '1rem',
-                                    fontWeight: '600',
-                                    color: '#ffffff',
-                                    margin: '0 0 16px 0'
-                                }}>
-                                    Key Turning Points
-                                </h4>
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                                    gap: '12px'
-                                }}>
-                                    {turningPoints.slice(0, 3).map((point, index) => (
-                                        <div key={index} style={{
-                                            padding: '16px',
-                                            background: '#0f172a',
-                                            border: '1px solid #1e293b',
+                                            position: 'absolute',
+                                            top: '12px',
+                                            right: '12px',
+                                            padding: '4px 12px',
+                                            background: index === 0 ? '#f59e0b' : index === 1 ? '#10b981' : '#6366f1',
+                                            color: '#ffffff',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '700',
                                             borderRadius: '6px'
+                                        }}>
+                                            #{index + 1}
+                                        </div>
+
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'flex-start',
+                                            marginBottom: '16px'
                                         }}>
                                             <div style={{
                                                 display: 'flex',
-                                                justifyContent: 'space-between',
                                                 alignItems: 'center',
-                                                marginBottom: '8px'
+                                                gap: '12px'
                                             }}>
+                                <span style={{
+                                    fontSize: '1.125rem',
+                                    fontWeight: '600',
+                                    color: '#ffffff'
+                                }}>
+                                    {point.speaker}
+                                </span>
                                                 <span style={{
-                                                    fontSize: '0.875rem',
-                                                    fontWeight: '600',
-                                                    color: '#ffffff'
+                                                    fontSize: '0.8rem',
+                                                    padding: '4px 8px',
+                                                    background: '#374151',
+                                                    color: '#9ca3af',
+                                                    borderRadius: '4px',
+                                                    fontWeight: '500'
                                                 }}>
-                                                    Segment {point.segment}
-                                                </span>
-                                                <span style={{
-                                                    fontSize: '0.875rem',
-                                                    fontWeight: '700',
-                                                    color: point.momentum > 0 ? '#3b82f6' : '#dc2626'
-                                                }}>
-                                                    {point.momentum > 0 ? '+' : ''}{point.momentum.toFixed(1)}
-                                                </span>
+                                    Segment {point.segment}
+                                </span>
                                             </div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                color: '#9ca3af'
+                                            <span style={{
+                                                fontSize: '1.5rem',
+                                                fontWeight: '800',
+                                                color: point.momentum > 0 ? '#22c55e' : '#ef4444'
                                             }}>
-                                                {point.description}
-                                            </div>
-                                            <div style={{
-                                                fontSize: '0.75rem',
-                                                color: '#6b7280',
-                                                marginTop: '4px'
-                                            }}>
-                                                Speaker: {point.speaker}
-                                            </div>
+                                {point.momentum > 0 ? '+' : ''}{point.momentum.toFixed(1)}
+                            </span>
                                         </div>
-                                    ))}
-                                </div>
+
+                                        {point.text && (
+                                            <div style={{
+                                                padding: '16px',
+                                                background: 'rgba(255, 255, 255, 0.1)',
+                                                borderRadius: '8px',
+                                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                marginBottom: '12px'
+                                            }}>
+                                                <p style={{
+                                                    color: '#ffffff',
+                                                    margin: '0',
+                                                    fontSize: '0.95rem',
+                                                    lineHeight: '1.6',
+                                                    fontStyle: 'italic'
+                                                }}>
+                                                    "{point.text}"
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <div style={{
+                                            fontSize: '0.875rem',
+                                            color: '#e2e8f0',
+                                            lineHeight: '1.4'
+                                        }}>
+                                            {point.description}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        )}
+                        </div>
                     </div>
                 )}
 
@@ -1585,21 +1736,23 @@ const App = () => {
                     background: '#111827',
                     border: '1px solid #1f2937',
                     borderRadius: '12px',
-                    padding: '24px'
+                    padding: '24px',
+                    marginTop: '16px'
                 }}>
-
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '12px',
-                        marginBottom: '24px'
+                        justifyContent: 'space-between',
+                        marginBottom: '16px'
                     }}>
-                        <RadioIcon size={24} color="blue" />
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>
-                            Live Transcript
+                        <h3 style={{
+                            fontSize: '1.125rem',
+                            fontWeight: '600',
+                            color: '#ffffff',
+                            margin: '0'
+                        }}>
+                            Live Analysis
                         </h3>
-                    </div>
-
                         {parsedSegments.length > 0 && (
                             <div style={{
                                 fontSize: '0.8rem',
@@ -1727,7 +1880,147 @@ const App = () => {
                         </div>
                     )}
                 </div>
+
+                {/* Full Transcript - New Section */}
+                {analyzedTranscriptLines.length > 0 && (
+                    <div style={{
+                        background: '#111827',
+                        border: '1px solid #1f2937',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        marginTop: '24px'
+                    }}>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '16px'
+                        }}>
+                            <h3 style={{
+                                fontSize: '1.125rem',
+                                fontWeight: '600',
+                                color: '#ffffff',
+                                margin: '0'
+                            }}>
+                                Full Transcript
+                            </h3>
+                            <div style={{
+                                fontSize: '0.8rem',
+                                color: '#6b7280',
+                                fontWeight: '500'
+                            }}>
+                                {analyzedTranscriptLines.length} lines analyzed
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowFullTranscript(!showFullTranscript)}
+                            style={{
+                                width: '100%',
+                                padding: '12px',
+                                background: '#1f2937',
+                                border: '1px solid #374151',
+                                borderRadius: '8px',
+                                color: '#ffffff',
+                                fontSize: '0.95rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                transition: 'all 0.2s',
+                                marginBottom: '16px'
+                            }}
+                        >
+                            <span>{showFullTranscript ? 'Hide' : 'Show'} Complete Transcript</span>
+                            <span style={{
+                                transform: showFullTranscript ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transition: 'transform 0.2s'
+                            }}>
+                ▼
+            </span>
+                        </button>
+
+                        {showFullTranscript && (
+                            <div style={{
+                                maxHeight: '600px',
+                                overflowY: 'auto',
+                                background: '#0f172a',
+                                border: '1px solid #1e293b',
+                                borderRadius: '8px',
+                                padding: '16px'
+                            }}>
+                                {analyzedTranscriptLines.map((line, index) => (
+                                    <div key={index} style={{
+                                        padding: '12px',
+                                        background: line.isDemocrat ? '#1e3a5f' : '#5f1e1e',
+                                        border: `1px solid ${line.isDemocrat ? '#2563eb' : '#dc2626'}`,
+                                        borderRadius: '6px',
+                                        marginBottom: '12px'
+                                    }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            marginBottom: '8px'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{
+                                    fontSize: '0.75rem',
+                                    padding: '2px 6px',
+                                    background: '#374151',
+                                    color: '#9ca3af',
+                                    borderRadius: '4px'
+                                }}>
+                                    #{line.segmentNumber}
+                                </span>
+                                                <span style={{
+                                                    fontSize: '0.95rem',
+                                                    fontWeight: '600',
+                                                    color: '#ffffff'
+                                                }}>
+                                    {line.speaker}
+                                </span>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{
+                                    fontSize: '0.7rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: line.sentiment === 'POSITIVE' ? '#065f46' :
+                                        line.sentiment === 'NEGATIVE' ? '#991b1b' : '#374151',
+                                    color: '#ffffff',
+                                    fontWeight: '500'
+                                }}>
+                                    {line.sentiment}
+                                </span>
+                                                <span style={{
+                                                    fontSize: '0.95rem',
+                                                    fontWeight: '700',
+                                                    color: line.impactScore > 0 ? '#22c55e' :
+                                                        line.impactScore < 0 ? '#ef4444' : '#9ca3af'
+                                                }}>
+                                    {line.impactScore > 0 ? '+' : ''}{line.impactScore.toFixed(1)}
+                                </span>
+                                            </div>
+                                        </div>
+                                        <p style={{
+                                            color: '#e2e8f0',
+                                            margin: '0',
+                                            fontSize: '0.875rem',
+                                            lineHeight: '1.5'
+                                        }}>
+                                            {line.text}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
             </div>
+        </div>
     );
 };
 
