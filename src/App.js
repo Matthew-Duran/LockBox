@@ -20,6 +20,7 @@ const App = () => {
     const [expandedTurningPoints, setExpandedTurningPoints] = useState({});
     const [selectedDebate, setSelectedDebate] = useState(null);
     const [selectedYear, setSelectedYear] = useState('2024');
+    const [isGraphExpanded, setIsGraphExpanded] = useState(false);
     const [candidateScores, setCandidateScores] = useState({
         democrat: { name: 'Democrat', score: 0, segments: 0 },
         republican: { name: 'Republican', score: 0, segments: 0 }
@@ -225,8 +226,72 @@ const App = () => {
         ]
     };
 
-    const calculateImpactScore = (segment, sentimentData) => {
+    const checkForStunner = (text, speaker, debate) => {
+        const lowerText = text.toLowerCase();
+
+        // Debate-killing moments - positive scores help the speaker, negative hurt them
+        const catastrophicMemes = [
+            { pattern: /binders full of women/i, debate: '2012_debate_2', multiplier: -10 },
+            { pattern: /lockbox/i, debate: '2000_debate_1', multiplier: -4 },
+            { pattern: /47 percent|47%/i, debate: '2012_debate_1', multiplier: -7 },
+            { pattern: /pokemon go/i, debate: '2016_debate_', multiplier: -7 },
+            { pattern: /deplorable/i, debate: '2016_debate_1', multiplier: -7 },
+            { pattern: /horses and bayonets/i, debate: '2012_debate_3', multiplier: -7 },
+            { pattern: /you didn.t build that/i, debate: '2012_', multiplier: -7 },
+            { pattern: /please proceed/i, debate: '2012_debate_2', multiplier: 7 },
+            { pattern: /miss piggy/i, debate: '2016_debate_1', multiplier: -5 },
+            { pattern: /eating.*pets|eating.*dogs|eating.*cats/i, debate: '2024_debate_2', multiplier: -5 },
+            { pattern: /will you shut up/i, debate: '2020_debate_1', multiplier: -2 },
+            { pattern: /stand back.*stand by/i, debate: '2020_debate_1', multiplier: -5 },
+            { pattern: /because you.d be in jail/i, debate: '2016_debate_2', multiplier: 10 },
+            { pattern: /only rosie o.donnell/i, debate: '2016_debate_1', multiplier: 5 },
+        ];
+
+        for (const meme of catastrophicMemes) {
+            if (meme.pattern.test(lowerText)) {
+                if (debate?.id?.includes(meme.debate) || meme.debate === '') {
+                    return meme.multiplier;
+                }
+            }
+        }
+
+        if (debate?.id === '2000_debate_1' && speaker.includes('Gore')) {
+            return -2;
+        }
+
+        return 0;
+    };
+
+
+    const calculateImpactScore = (segment, sentimentData, debate) => {
+        const memePenalty = checkForStunner(segment.text, segment.speaker, debate);
+        if (memePenalty !== 0) {
+            return memePenalty;
+        }
+
+        const strongLanguage = /\b(wrong|false|lie|failed|disaster|weak)\b/i.test(segment.text);
+        const confident = /\b(absolutely|clearly|obviously|fact is|let me be clear)\b/i.test(segment.text);
+        const attack = /\b(opponent|failed|wrong|disaster)\b/i.test(segment.text);
+
         let baseScore = 0;
+        if (sentimentData.sentiment === 'POSITIVE') {
+            baseScore = sentimentData.confidence * 3;
+        } else if (sentimentData.sentiment === 'NEGATIVE') {
+            baseScore = -(sentimentData.confidence * 3);
+        }
+
+        // Check for rhetorical power markers
+        if (sentimentData.sentiment === 'NEGATIVE' && (strongLanguage || attack || confident)) {
+            baseScore = sentimentData.confidence * 3;
+        }
+
+        else if (sentimentData.sentiment === 'POSITIVE') {
+            baseScore = sentimentData.confidence * 3;
+        }
+
+        else if (sentimentData.sentiment === 'NEGATIVE') {
+            baseScore = -(sentimentData.confidence * 3);
+        }
 
         if (sentimentData.sentiment === 'POSITIVE') {
             baseScore = sentimentData.confidence * 3;
@@ -268,7 +333,6 @@ const App = () => {
 
         const multiplier = topicMultipliers[segment.topic] || 1.0;
         const rhetoricalVariance = (Math.random() - 0.5) * 0.6;
-
         const finalScore = Math.max(-5, Math.min(5, (baseScore * multiplier) + rhetoricalVariance));
         return Math.round(finalScore * 10) / 10;
     };
@@ -431,7 +495,6 @@ const App = () => {
 
             console.log('Transcript failed, running demo analysis...');
             setTimeout(() => {
-                runDemoAnalysis();
             }, 1000);
         } finally {
             setIsLoadingTranscript(false);
@@ -475,7 +538,7 @@ const App = () => {
 
                 if (!segment.isModerator) {
                     const sentimentData = generateSentimentAnalysis(segment);
-                    const impactScore = calculateImpactScore(segment, sentimentData);
+                    const impactScore = calculateImpactScore(segment, sentimentData, selectedDebate);
 
                     setSegmentScores(prev => ({
                         ...prev,
@@ -807,7 +870,8 @@ const App = () => {
                     description: `Major momentum shift at segment ${i}`,
                     speaker: data[i].speaker,
                     text: data[i].text,
-                    change: change
+                    change: change,
+                    impact: data[i].impact
                 });
             }
         }
@@ -913,8 +977,7 @@ const App = () => {
             '2020_debate_2': "Trump's refusal to denounce white supremacists, instead telling the Proud Boys to 'stand back and stand by,' sparked immediate national outrage. The group adopted the phrase as a rallying cry, and Trump's polling dropped 2-3 points in swing states.",
             '2016_debate_1': "Trump's comment that not paying federal taxes 'makes me smart' and his admission he called a Miss Universe winner 'Miss Piggy' damaged his appeal with women voters. Post-debate polls showed Clinton won decisively, 62% to 27%.",
             '2016_debate_2': "This debate occurred 48 hours after the Access Hollywood tape leak. Trump brought Bill Clinton's accusers to the debate hall. Despite predictions he would implode, Trump's aggressive performance stabilized his campaign and he went on to win.",
-            '2016_debate_3': "Trump's refusal to say he'd accept election results ('I'll keep you in suspense') was unprecedented. Even Republican leaders condemned it. This moment foreshadowed the January 6th Capitol attack four years later.",
-            '2012_debate_1': "Obama's listless performance caused Democratic panic - his polling lead evaporated overnight. Pundits called it the worst debate performance by an incumbent president in modern history. Romney surged and polls became tied for weeks.",
+            '2016_debate_3': "Trump's refusal to commit to accepting election results ('I'll keep you in suspense') was unprecedented in modern debate history. Republican leaders including Paul Ryan and Mitch McConnell publicly broke with him the next day, calling it a threat to democratic norms. His polling dropped 2-3 points in key swing states.",            '2012_debate_1': "Obama's listless performance caused Democratic panic - his polling lead evaporated overnight. Pundits called it the worst debate performance by an incumbent president in modern history. Romney surged and polls became tied for weeks.",
             '2012_debate_2': "Romney's gaffe about having 'binders full of women' became an instant meme and highlighted his awkwardness on women's issues. Obama's aggressive comeback from the first debate sealed Romney's fate.",
             '2012_debate_3': "Romney's claim that the Navy had fewer ships than in 1916 led to Obama's cutting response: 'We also have fewer horses and bayonets.' The viral moment reinforced Romney's image as out-of-touch and ended his comeback momentum.",
             '2008_debate_1': "McCain's bizarre announcement he was 'suspending his campaign' to deal with the financial crisis, then showing up anyway, made him look erratic. Obama appeared steady and presidential. McCain never recovered his polling lead.",
@@ -1307,14 +1370,63 @@ const App = () => {
                             <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Debate Momentum</h3>
                             <div style={{
                                 marginLeft: 'auto',
-                                padding: '4px 12px',
-                                borderRadius: '12px',
-                                background: isDemocratLeading ? PARTY_COLORS.democrat + '20' : PARTY_COLORS.republican + '20',
-                                color: isDemocratLeading ? PARTY_COLORS.democratLight : PARTY_COLORS.republicanLight,
-                                fontSize: '0.875rem',
-                                fontWeight: '600'
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px'
                             }}>
-                                {isDemocratLeading ? candidateScores.democrat.name : candidateScores.republican.name} Leading
+                                <div style={{
+                                    marginLeft: 'auto',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px'
+                                }}>
+                                    {!analysisComplete && (
+                                        <div style={{
+                                            padding: '6px 16px',
+                                            borderRadius: '12px',
+                                            background: isDemocratLeading
+                                                ? `linear-gradient(135deg, ${PARTY_COLORS.democrat}, ${PARTY_COLORS.democratLight})`
+                                                : `linear-gradient(135deg, ${PARTY_COLORS.republican}, ${PARTY_COLORS.republicanLight})`,
+                                            color: '#ffffff',
+                                            fontSize: '0.875rem',
+                                            fontWeight: '600',
+                                            boxShadow: isDemocratLeading
+                                                ? '0 4px 12px rgba(59, 130, 246, 0.4)'
+                                                : '0 4px 12px rgba(220, 38, 38, 0.4)'
+                                        }}>
+                                            {isDemocratLeading ? candidateScores.democrat.name : candidateScores.republican.name} Leading
+                                        </div>
+                                    )}
+                                    {analysisComplete && (
+                                        <button
+                                            onClick={() => setIsGraphExpanded(true)}
+                                            style={{
+                                                padding: '10px 20px',
+                                                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                                color: '#ffffff',
+                                                border: '2px solid #60a5fa',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.95rem',
+                                                fontWeight: '700',
+                                                boxShadow: '0 6px 20px rgba(59, 130, 246, 0.5)',
+                                                transition: 'all 0.2s',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.5px'
+                                            }}
+                                            onMouseOver={(e) => {
+                                                e.target.style.transform = 'scale(1.05)';
+                                                e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.6)';
+                                            }}
+                                            onMouseOut={(e) => {
+                                                e.target.style.transform = 'scale(1)';
+                                                e.target.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.5)';
+                                            }}
+                                        >
+                                            Expand Graph
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -1334,17 +1446,11 @@ const App = () => {
                                             margin={{ top: 22, right: 20, left: 20, bottom: 40 }}
                                         >
                                             <defs>
-                                                <linearGradient id="momentumGradient" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop
-                                                        offset="5%"
-                                                        stopColor={isDemocratLeading ? PARTY_COLORS.democrat : PARTY_COLORS.republican}
-                                                        stopOpacity={0.8}
-                                                    />
-                                                    <stop
-                                                        offset="95%"
-                                                        stopColor={isDemocratLeading ? PARTY_COLORS.democrat : PARTY_COLORS.republican}
-                                                        stopOpacity={0.1}
-                                                    />
+                                                <linearGradient id="splitGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor={PARTY_COLORS.democrat} stopOpacity={0.8} />
+                                                    <stop offset="50%" stopColor={PARTY_COLORS.democrat} stopOpacity={0.1} />
+                                                    <stop offset="50%" stopColor={PARTY_COLORS.republican} stopOpacity={0.1} />
+                                                    <stop offset="100%" stopColor={PARTY_COLORS.republican} stopOpacity={0.8} />
                                                 </linearGradient>
                                             </defs>
 
@@ -1360,12 +1466,25 @@ const App = () => {
 
                                             <Area
                                                 type="monotone"
-                                                dataKey="momentum"
-                                                stroke={isDemocratLeading ? PARTY_COLORS.democrat : PARTY_COLORS.republican}
-                                                fill="url(#momentumGradient)"
+                                                dataKey={(data) => data.momentum > 0 ? data.momentum : 0}
+                                                stroke={PARTY_COLORS.democrat}
+                                                fill={PARTY_COLORS.democrat}
+                                                fillOpacity={0.3}
                                                 strokeWidth={3}
                                                 dot={false}
-                                                activeDot={{ r: 6, stroke: isDemocratLeading ? PARTY_COLORS.democrat : PARTY_COLORS.republican, strokeWidth: 2, fill: '#ffffff' }}
+                                                connectNulls={false}
+                                            />
+
+                                            {/* Area for negative (red) */}
+                                            <Area
+                                                type="monotone"
+                                                dataKey={(data) => data.momentum < 0 ? data.momentum : 0}
+                                                stroke={PARTY_COLORS.republican}
+                                                fill={PARTY_COLORS.republican}
+                                                fillOpacity={0.3}
+                                                strokeWidth={3}
+                                                dot={false}
+                                                connectNulls={false}
                                             />
                                         </AreaChart>
                                     </ResponsiveContainer>
@@ -1417,7 +1536,7 @@ const App = () => {
                                         top: '47%',
                                         left: '80px',
                                         right: '19px',
-                                        height: '2px',
+                                        height: '4px',
                                         backgroundColor: '#4b5563',
                                         transform: 'translateY(-50%)',
                                         zIndex: 1
@@ -1688,8 +1807,8 @@ const App = () => {
                                         Top 3 Positive Momentum Shifts
                                     </h5>
                                     {turningPoints
-                                        .filter(point => point.momentum > 0)
-                                        .sort((a, b) => b.momentum - a.momentum)
+                                        .filter(point => point.impact > 0)
+                                        .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
                                         .slice(0, 3)
                                         .map((point, index) => (
                                             <div key={index} style={{
@@ -1778,7 +1897,13 @@ const App = () => {
                                                         fontWeight: '800',
                                                         color: '#22c55e'
                                                     }}>
-                                +{point.momentum.toFixed(1)}
+                                <span style={{
+                                    fontSize: '1.25rem',
+                                    fontWeight: '800',
+                                    color: point.impact > 0 ? '#22c55e' : '#ef4444'
+                                }}>
+                                {point.impact > 0 ? '+' : ''}{point.impact.toFixed(1)}
+                            </span>
                             </span>
                                                 </div>
 
@@ -1835,8 +1960,8 @@ const App = () => {
                                         Top 3 Negative Momentum Shifts
                                     </h5>
                                     {turningPoints
-                                        .filter(point => point.momentum < 0)
-                                        .sort((a, b) => a.momentum - b.momentum)
+                                        .filter(point => point.impact < 0)
+                                        .sort((a, b) => a.impact - b.impact)
                                         .slice(0, 3)
                                         .map((point, index) => (
                                             <div key={index} style={{
@@ -1925,7 +2050,7 @@ const App = () => {
                                                         fontWeight: '800',
                                                         color: '#ef4444'
                                                     }}>
-                                {point.momentum.toFixed(1)}
+                                {point.impact.toFixed(1)}
                             </span>
                                                 </div>
 
@@ -2361,6 +2486,123 @@ const App = () => {
                 )}
 
             </div>
+            {/* Fullscreen Graph */}
+            {isGraphExpanded && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.95)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '40px'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '24px'
+                    }}>
+                        <h2 style={{
+                            fontSize: '2rem',
+                            fontWeight: '700',
+                            color: '#ffffff',
+                            margin: 0
+                        }}>
+                            Debate Momentum Analysis
+                        </h2>
+                        <button
+                            onClick={() => setIsGraphExpanded(false)}
+                            style={{
+                                padding: '12px 24px',
+                                background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                                color: '#ffffff',
+                                border: '2px solid #f87171',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '1rem',
+                                fontWeight: '700',
+                                boxShadow: '0 6px 20px rgba(220, 38, 38, 0.5)',
+                                transition: 'all 0.2s',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                            }}
+                            onMouseOver={(e) => {
+                                e.target.style.transform = 'scale(1.05)';
+                                e.target.style.boxShadow = '0 8px 25px rgba(220, 38, 38, 0.6)';
+                            }}
+                            onMouseOut={(e) => {
+                                e.target.style.transform = 'scale(1)';
+                                e.target.style.boxShadow = '0 6px 20px rgba(220, 38, 38, 0.5)';
+                            }}
+                        >
+                            ✕ Close
+                        </button>
+                    </div>
+
+                    <div style={{
+                        flex: 1,
+                        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)',
+                        borderRadius: '12px',
+                        padding: '32px',
+                        position: 'relative',
+                        boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.5)'
+                    }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart
+                                data={momentumData}
+                                margin={{ top: 40, right: 40, left: 40, bottom: 60 }}
+                            >
+                                <XAxis dataKey="segment" hide />
+                                <YAxis
+                                    domain={[-5, 5]}
+                                    ticks={[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#9ca3af', fontSize: 14 }}
+                                />
+                                <Tooltip content={<CustomTooltip />} />
+
+                                <Area
+                                    type="monotone"
+                                    dataKey={(data) => data.momentum > 0 ? data.momentum : 0}
+                                    stroke={PARTY_COLORS.democrat}
+                                    fill={PARTY_COLORS.democrat}
+                                    fillOpacity={0.3}
+                                    strokeWidth={4}
+                                    dot={false}
+                                    connectNulls={false}
+                                />
+
+                                <Area
+                                    type="monotone"
+                                    dataKey={(data) => data.momentum < 0 ? data.momentum : 0}
+                                    stroke={PARTY_COLORS.republican}
+                                    fill={PARTY_COLORS.republican}
+                                    fillOpacity={0.3}
+                                    strokeWidth={4}
+                                    dot={false}
+                                    connectNulls={false}
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+
+                        <div style={{
+                            position: 'absolute',
+                            top: '49%',
+                            left: '80px',
+                            right: '40px',
+                            height: '7px',
+                            backgroundColor: '#4b5563',
+                            transform: 'translateY(-50%)',
+                            zIndex: 1
+                        }}></div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
