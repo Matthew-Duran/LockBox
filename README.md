@@ -55,10 +55,13 @@ LockBox is a React-based analytics platform that transforms presidential debate 
 
 - Time-series data processing
 
+- Visual hierarchy and information design
+
   
 <img width="1111" height="775" alt="LockBox Thumbnail" src="https://github.com/user-attachments/assets/61f7e452-c6a8-45b3-a7c6-73b4c00648a4" />
 
-- Visual hierarchy and information design
+
+
 
 
 
