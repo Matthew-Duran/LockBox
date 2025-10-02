@@ -228,36 +228,65 @@ const App = () => {
 
     const checkForStunner = (text, speaker, debate) => {
         const lowerText = text.toLowerCase();
+        const lowerSpeaker = speaker.toLowerCase();
 
         // Debate-killing moments - positive scores help the speaker, negative hurt them
         const catastrophicMemes = [
-            { pattern: /binders full of women/i, debate: '2012_debate_2', multiplier: -10 },
-            { pattern: /lockbox/i, debate: '2000_debate_1', multiplier: -4 },
-            { pattern: /47 percent|47%/i, debate: '2012_debate_1', multiplier: -7 },
-            { pattern: /pokemon go/i, debate: '2016_debate_', multiplier: -7 },
-            { pattern: /deplorable/i, debate: '2016_debate_1', multiplier: -7 },
-            { pattern: /horses and bayonets/i, debate: '2012_debate_3', multiplier: -7 },
-            { pattern: /you didn.t build that/i, debate: '2012_', multiplier: -7 },
-            { pattern: /please proceed/i, debate: '2012_debate_2', multiplier: 7 },
-            { pattern: /miss piggy/i, debate: '2016_debate_1', multiplier: -5 },
-            { pattern: /eating.*pets|eating.*dogs|eating.*cats/i, debate: '2024_debate_2', multiplier: -5 },
-            { pattern: /will you shut up/i, debate: '2020_debate_1', multiplier: -2 },
-            { pattern: /stand back.*stand by/i, debate: '2020_debate_1', multiplier: -5 },
-            { pattern: /because you.d be in jail/i, debate: '2016_debate_2', multiplier: 10 },
-            { pattern: /only rosie o.donnell/i, debate: '2016_debate_1', multiplier: 5 },
+            { pattern: /binders full of women/i, debate: '2012_debate_2', speaker: 'romney', multiplier: -10 },
+            { pattern: /lockbox/i, debate: '2000_debate_1', speaker: 'gore', multiplier: -10 },
+            { pattern: /47 percent|47%/i, debate: '2012_debate_1', speaker: 'romney', multiplier: -10 },
+            { pattern: /pokemon go/i, debate: '2016_debate_', speaker: 'clinton', multiplier: -10 },
+            { pattern: /basket of deplorables|deplorables/i, debate: '2016_debate_1', speaker: 'clinton', multiplier: -10 },
+            { pattern: /horses and bayonets/i, debate: '2012_debate_3', speaker: 'obama', multiplier: 7 },
+            { pattern: /you didn.t build that/i, debate: '2012_', speaker: 'romney', multiplier: -7 },
+            { pattern: /please proceed/i, debate: '2012_debate_2', speaker: 'obama', multiplier: 7 },
+            { pattern: /miss piggy/i, debate: '2016_debate_1', speaker: 'clinton', multiplier: 5 },
+            { pattern: /eating.*pets|eating.*dogs|eating.*cats/i, debate: '2024_debate_2', speaker: 'trump', multiplier: -10 },
+            { pattern: /will you shut up/i, debate: '2020_debate_1', speaker: 'biden', multiplier: 5 },
+            { pattern: /stand back.*stand by/i, debate: '2020_debate_1', speaker: 'trump', multiplier: -10 },
+            { pattern: /because you.d be in jail/i, debate: '2016_debate_2', speaker: 'trump', multiplier: 10 },
+            { pattern: /only rosie o.donnell/i, debate: '2016_debate_1', speaker: 'trump', multiplier: 7 },
         ];
 
         for (const meme of catastrophicMemes) {
             if (meme.pattern.test(lowerText)) {
-                if (debate?.id?.includes(meme.debate) || meme.debate === '') {
+                // Check if both debate and speaker match
+                const debateMatches = debate?.id?.includes(meme.debate) || meme.debate === '';
+                const speakerMatches = lowerSpeaker.includes(meme.speaker);
+
+                if (debateMatches && speakerMatches) {
                     return meme.multiplier;
                 }
             }
         }
 
-        if (debate?.id === '2000_debate_1' && speaker.includes('Gore')) {
-            return -2;
+        if (debate?.id === '2012_debate_1' && lowerSpeaker.includes('romney')) {
+            return 0.3;
         }
+        if (debate?.id === '2012_debate_1' && lowerSpeaker.includes('obama')) {
+            return -0.3;
+        }
+
+        if (debate?.id === '2024_debate_1' && lowerSpeaker.includes('biden')) {
+            return -0.4;
+        }
+        if (debate?.id === '2024_debate_1' && lowerSpeaker.includes('trump')) {
+            return 0.2;
+        }
+
+        if (debate?.id === '2024_debate_2' && lowerSpeaker.includes('harris')) {
+            return 0.3;
+        }
+
+        if (debate?.id === '2000_debate_1' && lowerSpeaker.includes('gore')) {
+            return -0.3;
+        }
+
+        if (debate?.id === '2016_debate_2' && lowerSpeaker.includes('trump')) {
+            return 0.2;
+        }
+
+
 
         return 0;
     };
@@ -265,9 +294,11 @@ const App = () => {
 
     const calculateImpactScore = (segment, sentimentData, debate) => {
         const memePenalty = checkForStunner(segment.text, segment.speaker, debate);
-        if (memePenalty !== 0) {
+        if (memePenalty !== 0 && Math.abs(memePenalty) > 1) { 
             return memePenalty;
         }
+
+        const bias = memePenalty;
 
         const strongLanguage = /\b(wrong|false|lie|failed|disaster|weak)\b/i.test(segment.text);
         const confident = /\b(absolutely|clearly|obviously|fact is|let me be clear)\b/i.test(segment.text);
@@ -275,65 +306,49 @@ const App = () => {
 
         let baseScore = 0;
         if (sentimentData.sentiment === 'POSITIVE') {
-            baseScore = sentimentData.confidence * 3;
+            baseScore = sentimentData.confidence * 1.5;
         } else if (sentimentData.sentiment === 'NEGATIVE') {
-            baseScore = -(sentimentData.confidence * 3);
+            baseScore = -(sentimentData.confidence * 1.5);
         }
 
-        // Check for rhetorical power markers
         if (sentimentData.sentiment === 'NEGATIVE' && (strongLanguage || attack || confident)) {
-            baseScore = sentimentData.confidence * 3;
+            baseScore = sentimentData.confidence * 1.8;
         }
 
-        else if (sentimentData.sentiment === 'POSITIVE') {
-            baseScore = sentimentData.confidence * 3;
-        }
-
-        else if (sentimentData.sentiment === 'NEGATIVE') {
-            baseScore = -(sentimentData.confidence * 3);
-        }
-
-        if (sentimentData.sentiment === 'POSITIVE') {
-            baseScore = sentimentData.confidence * 3;
-        } else if (sentimentData.sentiment === 'NEGATIVE') {
-            baseScore = -(sentimentData.confidence * 3);
-        }
-
-        // Topic multipliers
         const topicMultipliers = {
-            'economy': 2.0,
-            'taxes': 1.8,
-            'healthcare': 1.5,
-            'immigration': 1.7,
-            'abortion': 1.8,
-            'jobs': 1.9,
-            'unemployment': 1.9,
-            'inflation': 2.0,
-            'covid': 1.6,
-            'race': 1.4,
-            'civil_rights': 1.4,
-            'democracy': 1.3,
-            'foreign_policy': 1.1,
-            'military': 1.2,
+            'economy': 1.3,
+            'taxes': 1.2,
+            'healthcare': 1.2,
+            'immigration': 1.3,
+            'abortion': 1.3,
+            'jobs': 1.3,
+            'unemployment': 1.3,
+            'inflation': 1.3,
+            'covid': 1.2,
+            'race': 1.1,
+            'civil_rights': 1.1,
+            'democracy': 1.1,
+            'foreign_policy': 1.0,
+            'military': 1.0,
             'climate': 1.0,
-            'energy': 1.3,
-            'education': 1.2,
-            'social_security': 1.6,
-            'medicare': 1.5,
-            'medicaid': 1.3,
-            'crime': 1.5,
-            'police': 1.4,
-            'terrorism': 1.3,
-            'scandal': 1.9,
-            'corruption': 1.7,
-            'experience': 1.2,
-            'fitness': 1.6,
+            'energy': 1.1,
+            'education': 1.0,
+            'social_security': 1.2,
+            'medicare': 1.2,
+            'medicaid': 1.1,
+            'crime': 1.2,
+            'police': 1.1,
+            'terrorism': 1.1,
+            'scandal': 1.4,
+            'corruption': 1.3,
+            'experience': 1.0,
+            'fitness': 1.2,
             'other': 1.0
         };
 
         const multiplier = topicMultipliers[segment.topic] || 1.0;
-        const rhetoricalVariance = (Math.random() - 0.5) * 0.6;
-        const finalScore = Math.max(-5, Math.min(5, (baseScore * multiplier) + rhetoricalVariance));
+        const rhetoricalVariance = (Math.random() - 0.5) * 1.0;
+        const finalScore = Math.max(-5, Math.min(5, (baseScore * multiplier) + rhetoricalVariance + bias));  // Add bias here
         return Math.round(finalScore * 10) / 10;
     };
 
@@ -1787,7 +1802,7 @@ const App = () => {
                                 gap: '8px'
                             }}>
                                 <Activity size={20} color="#eab308" />
-                                Key Debate Moments
+                                Top Impactful Moments
                             </h4>
 
                             <div style={{
@@ -1804,13 +1819,13 @@ const App = () => {
                                         margin: '0 0 16px 0',
                                         textAlign: 'center'
                                     }}>
-                                        Top 3 Positive Momentum Shifts
+                                        Top 3 Highest Scoring Moments
                                     </h5>
-                                    {turningPoints
-                                        .filter(point => point.impact > 0)
-                                        .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
+                                    {analyzedTranscriptLines
+                                        .filter(line => line.impactScore > 0 && !line.isModerator)
+                                        .sort((a, b) => b.impactScore - a.impactScore)
                                         .slice(0, 3)
-                                        .map((point, index) => (
+                                        .map((line, index) => (
                                             <div key={index} style={{
                                                 padding: '20px',
                                                 background: index === 0 ? 'linear-gradient(135deg, #1a1506 0%, #3d2a0f 100%)' :
@@ -1869,10 +1884,10 @@ const App = () => {
                                 <span style={{
                                     fontSize: '1rem',
                                     fontWeight: '600',
-                                    color: isDemocratCandidate(point.speaker) ? '#60a5fa' : '#f87171'
+                                    color: line.isDemocrat ? '#60a5fa' : '#f87171'
                                 }}>
-                                                            {point.speaker}
-                                                        </span>
+                                    {line.speaker}
+                                </span>
                                                         <span style={{
                                                             fontSize: '0.75rem',
                                                             padding: '3px 6px',
@@ -1881,15 +1896,7 @@ const App = () => {
                                                             borderRadius: '4px',
                                                             fontWeight: '500'
                                                         }}>
-                                    Line #{(() => {
-                                                            const foundIndex = analyzedTranscriptLines.findIndex(line =>
-                                                                line.speaker === point.speaker &&
-                                                                line.text &&
-                                                                point.text &&
-                                                                line.text.includes(point.text.substring(0, 30).replace('...', ''))
-                                                            );
-                                                            return foundIndex !== -1 ? foundIndex + 1 : '?';
-                                                        })()}
+                                    Line #{line.segmentNumber}
                                 </span>
                                                     </div>
                                                     <span style={{
@@ -1897,17 +1904,11 @@ const App = () => {
                                                         fontWeight: '800',
                                                         color: '#22c55e'
                                                     }}>
-                                <span style={{
-                                    fontSize: '1.25rem',
-                                    fontWeight: '800',
-                                    color: point.impact > 0 ? '#22c55e' : '#ef4444'
-                                }}>
-                                {point.impact > 0 ? '+' : ''}{point.impact.toFixed(1)}
-                            </span>
+                                +{line.impactScore.toFixed(1)}
                             </span>
                                                 </div>
 
-                                                {point.text && (
+                                                {line.text && (
                                                     <div style={{
                                                         padding: '12px',
                                                         background: 'rgba(255, 255, 255, 0.1)',
@@ -1921,17 +1922,7 @@ const App = () => {
                                                             lineHeight: '1.5',
                                                             fontStyle: 'italic'
                                                         }}>
-                                                            "{expandedTurningPoints[`pos-${index}`]
-                                                            ? (() => {
-                                                                const foundLine = analyzedTranscriptLines.find(line =>
-                                                                    line.speaker === point.speaker &&
-                                                                    line.text &&
-                                                                    point.text &&
-                                                                    line.text.includes(point.text.substring(0, 30).replace('...', ''))
-                                                                );
-                                                                return foundLine?.text || point.text;
-                                                            })()
-                                                            : point.text}"
+                                                            "{expandedTurningPoints[`pos-${index}`] ? line.text : line.text.substring(0, 60) + '...'}"
                                                         </p>
                                                         <div style={{
                                                             marginTop: '6px',
@@ -1957,13 +1948,13 @@ const App = () => {
                                         margin: '0 0 16px 0',
                                         textAlign: 'center'
                                     }}>
-                                        Top 3 Negative Momentum Shifts
+                                        Top 3 Lowest Scoring Moments
                                     </h5>
-                                    {turningPoints
-                                        .filter(point => point.impact < 0)
-                                        .sort((a, b) => a.impact - b.impact)
+                                    {analyzedTranscriptLines
+                                        .filter(line => line.impactScore < 0 && !line.isModerator)
+                                        .sort((a, b) => a.impactScore - b.impactScore)
                                         .slice(0, 3)
-                                        .map((point, index) => (
+                                        .map((line, index) => (
                                             <div key={index} style={{
                                                 padding: '20px',
                                                 background: index === 0 ? 'linear-gradient(135deg, #1a1506 0%, #3d2a0f 100%)' :
@@ -2022,10 +2013,10 @@ const App = () => {
                                 <span style={{
                                     fontSize: '1rem',
                                     fontWeight: '600',
-                                    color: isDemocratCandidate(point.speaker) ? '#60a5fa' : '#f87171'
+                                    color: line.isDemocrat ? '#60a5fa' : '#f87171'
                                 }}>
-                                                            {point.speaker}
-                                                        </span>
+                                    {line.speaker}
+                                </span>
                                                         <span style={{
                                                             fontSize: '0.75rem',
                                                             padding: '3px 6px',
@@ -2034,15 +2025,7 @@ const App = () => {
                                                             borderRadius: '4px',
                                                             fontWeight: '500'
                                                         }}>
-                                    Line #{(() => {
-                                                            const foundIndex = analyzedTranscriptLines.findIndex(line =>
-                                                                line.speaker === point.speaker &&
-                                                                line.text &&
-                                                                point.text &&
-                                                                line.text.includes(point.text.substring(0, 30).replace('...', ''))
-                                                            );
-                                                            return foundIndex !== -1 ? foundIndex + 1 : '?';
-                                                        })()}
+                                    Line #{line.segmentNumber}
                                 </span>
                                                     </div>
                                                     <span style={{
@@ -2050,11 +2033,11 @@ const App = () => {
                                                         fontWeight: '800',
                                                         color: '#ef4444'
                                                     }}>
-                                {point.impact.toFixed(1)}
+                                {line.impactScore.toFixed(1)}
                             </span>
                                                 </div>
 
-                                                {point.text && (
+                                                {line.text && (
                                                     <div style={{
                                                         padding: '12px',
                                                         background: 'rgba(255, 255, 255, 0.1)',
@@ -2068,17 +2051,7 @@ const App = () => {
                                                             lineHeight: '1.5',
                                                             fontStyle: 'italic'
                                                         }}>
-                                                            "{expandedTurningPoints[`neg-${index}`]
-                                                            ? (() => {
-                                                                const foundLine = analyzedTranscriptLines.find(line =>
-                                                                    line.speaker === point.speaker &&
-                                                                    line.text &&
-                                                                    point.text &&
-                                                                    line.text.includes(point.text.substring(0, 30).replace('...', ''))
-                                                                );
-                                                                return foundLine?.text || point.text;
-                                                            })()
-                                                            : point.text}"
+                                                            "{expandedTurningPoints[`neg-${index}`] ? line.text : line.text.substring(0, 60) + '...'}"
                                                         </p>
                                                         <div style={{
                                                             marginTop: '6px',
